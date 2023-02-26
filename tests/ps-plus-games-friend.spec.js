@@ -36,6 +36,8 @@ test("Extract the data", async ({ page }, testInfo) => {
     await lastPSPlusPost?.click();
     await page.waitForTimeout(2000);
 
+    data.source = page.url();
+
     const releaseDateTitle = page.locator(".post-single__sub-header-text");
     const releaseDateText = await releaseDateTitle.innerText();
     const releaseMonth = [
@@ -101,7 +103,10 @@ test("Extract the data", async ({ page }, testInfo) => {
         tagName.toLowerCase() === "p"
       ) {
         const description = await element.innerText();
-        game.description = [...game.description, description];
+        game.description = [
+          ...game.description,
+          description.trim().replace("\n", ""),
+        ];
 
         data.games.push(Object.assign({}, game));
         game = { image: "", name: "", platform: "", description: [] };

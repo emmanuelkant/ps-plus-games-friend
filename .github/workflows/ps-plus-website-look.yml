@@ -23,7 +23,7 @@ jobs:
       - name: Install Dependencies
         run: npm install
       - name: Install Playwright Browsers
-        run: npx playwright install
+        run: npx playwright install chromium
       - name: Run the bot
         run: npm run start
       - uses: stefanzweifel/git-auto-commit-action@v4

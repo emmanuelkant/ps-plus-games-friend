@@ -1,4 +1,3 @@
-// @ts-check
 const { test } = require("@playwright/test");
 const fs = require("fs");
 const {} = require("./utils");
@@ -11,10 +10,9 @@ const nextMonth = new Date(`${validMonth}/1/00`)
   .toLowerCase();
 
 test("Extract the data", async ({ page }, testInfo) => {
-  const data = {};
+  const data = { games: [] };
   await page.goto("https://blog.playstation.com/category/ps-plus/");
 
-  await page.screenshot({ path: "psPlus1.png" });
   let lastPSPlusPost = null;
 
   for (let i = 1; i <= 3; i++) {
@@ -29,6 +27,7 @@ test("Extract the data", async ({ page }, testInfo) => {
 
     if (isMatched) {
       lastPSPlusPost = post;
+
       break;
     }
   }
@@ -36,31 +35,80 @@ test("Extract the data", async ({ page }, testInfo) => {
   if (lastPSPlusPost) {
     await lastPSPlusPost?.click();
     await page.waitForTimeout(2000);
-    await page.screenshot({ path: "psPlus2.png" });
+
     const releaseDateTitle = page.locator(".post-single__sub-header-text");
     const releaseDateText = await releaseDateTitle.innerText();
+    const releaseMonth = [
+      "january",
+      "february",
+      "march",
+      "april",
+      "may",
+      "june",
+      "july",
+      "august",
+      "september",
+      "october",
+      "november",
+      "december",
+    ].find((month) => releaseDateText.toLowerCase().includes(month));
+
     const releaseDay = releaseDateText
       .replace(/,|\./g, "")
       .split(" ")
       .find((word) => !isNaN(Number(word)));
 
     data.releaseDate = new Date(
-      `${validMonth}/${releaseDay}/${currentDate.getFullYear()}`
+      `${releaseMonth} ${releaseDay}, ${currentDate.getFullYear()}`
     );
 
-    const allGames = await page.locator(".ps-image-modal__wrapper").all();
+    const announcementDateTitle = page.locator(".entry-date.published");
 
-    const g = await allGames.at(0)?.getByRole("img");
-    console.log(g);
+    const announcementDateText = await announcementDateTitle.innerText();
+    data.announcementDate = new Date(announcementDateText);
 
-    allGames.forEach(async (element) => {
-      const img = element.getByRole("img");
-      const t = await img.innerHTML();
-      // const src = await img.getAttribute('src')
-      console.dir(t);
-    });
+    let game = { image: "", name: "", platform: "", description: [] };
 
-    const file = testInfo.outputPath("tibia-coins-history.json");
+    for (const element of await page
+      .locator(".post-single__content.single__content > *")
+      .all()) {
+      const targetClass = await element.getAttribute("class");
+
+      if (targetClass.trim() === "ps-image-modal__wrapper") {
+        const img = element.locator("img");
+        const image = await img.getAttribute("data-src");
+
+        game.image = image;
+
+        continue;
+      }
+
+      const tagName = await element.evaluate((node) => node.tagName);
+
+      if (Boolean(game.image) && tagName.toLowerCase() === "h2") {
+        const fullTitle = await element.innerText();
+
+        const [name, platform] = fullTitle.split("|");
+        game.name = name.trim();
+
+        game.platform = platform.replace(/\s/g, "").replace(",", "_");
+
+        continue;
+      }
+
+      if (
+        [game.image, game.name, game.platform].every(Boolean) &&
+        tagName.toLowerCase() === "p"
+      ) {
+        const description = await element.innerText();
+        game.description = [...game.description, description];
+
+        data.games.push(Object.assign({}, game));
+        game = { image: "", name: "", platform: "", description: [] };
+      }
+    }
+
+    const file = testInfo.outputPath("ps-plus-monthly-games.json");
     await fs.promises.writeFile(file, JSON.stringify(data), "utf8");
   }
 });

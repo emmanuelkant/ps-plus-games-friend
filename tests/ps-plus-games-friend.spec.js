@@ -1,16 +1,28 @@
 const { test } = require("@playwright/test");
+const path = require("path");
+const axios = require("axios");
 const fs = require("fs");
-const {} = require("./utils");
 
-const currentDate = new Date();
-const currentMonthNumber = currentDate.getMonth();
-const validMonth = currentMonthNumber === 11 ? -1 : currentMonthNumber + 1;
-const nextMonth = new Date(`${validMonth}/1/00`)
-  .toLocaleString("en-us", { month: "long" })
-  .toLowerCase();
+async function loadData(file) {
+  return await fs.promises.readFile(file, "utf8");
+}
 
 test("Extract the data", async ({ page }, testInfo) => {
+  // axios.get("");
+  // const file = testInfo.outputPath("ps-plus-monthly-games.json");
+  // console.log(file)
+  // let oldData = await loadData(file);
+
+  // const oldMonth = new Date(oldData.releaseDate).getMonth();
+  const currentDate = new Date();
+  const currentMonthNumber = false ? oldMonth : currentDate.getMonth();
+  const targetMonth = currentMonthNumber === 11 ? -1 : currentMonthNumber + 2;
+  const nextMonth = new Date(`${targetMonth}/1/00`)
+    .toLocaleString("en-us", { month: "long" })
+    .toLowerCase();
+
   const data = { games: [] };
+
   await page.goto("https://blog.playstation.com/category/ps-plus/");
 
   let lastPSPlusPost = null;

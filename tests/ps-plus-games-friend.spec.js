@@ -1,131 +1,23 @@
 const { test } = require("@playwright/test");
-const path = require("path");
 const axios = require("axios");
-const fs = require("fs");
-
-async function loadData(file) {
-  return await fs.promises.readFile(file, "utf8");
-}
+const {
+  saveJSON,
+  getPostData,
+  getNextMonth,
+  getLastPSPlusPost,
+} = require("./utils");
 
 test("Extract the data", async ({ page }, testInfo) => {
-  // axios.get("");
-  // const file = testInfo.outputPath("ps-plus-monthly-games.json");
-  // console.log(file)
-  // let oldData = await loadData(file);
+  const rawData = await axios.get(process.env.REMOTE_DATA_URL);
+  const oldData = rawData.data;
 
-  // const oldMonth = new Date(oldData.releaseDate).getMonth();
-  const currentDate = new Date();
-  const currentMonthNumber = false ? oldMonth : currentDate.getMonth();
-  const targetMonth = currentMonthNumber === 11 ? -1 : currentMonthNumber + 2;
-  const nextMonth = new Date(`${targetMonth}/1/00`)
-    .toLocaleString("en-us", { month: "long" })
-    .toLowerCase();
-
-  const data = { games: [] };
+  const nextMonth = getNextMonth();
 
   await page.goto("https://blog.playstation.com/category/ps-plus/");
 
-  let lastPSPlusPost = null;
+  const lastPSPlusPost = await getLastPSPlusPost(page, nextMonth);
 
-  for (let i = 1; i <= 3; i++) {
-    const post = await page.locator(`article:nth-child(${i})`);
-    const firstText = post.locator(".post-card__title");
-    const postTitle = await firstText.innerText();
-    const postTitleLowerCased = postTitle.toLowerCase();
+  const data = await getPostData(page, lastPSPlusPost);
 
-    const isMatched = ["playstation plus", "monthly", nextMonth].every(
-      (target) => postTitleLowerCased.includes(target)
-    );
-
-    if (isMatched) {
-      lastPSPlusPost = post;
-
-      break;
-    }
-  }
-
-  if (lastPSPlusPost) {
-    await lastPSPlusPost?.click();
-    await page.waitForTimeout(2000);
-
-    data.source = page.url();
-
-    const releaseDateTitle = page.locator(".post-single__sub-header-text");
-    const releaseDateText = await releaseDateTitle.innerText();
-    const releaseMonth = [
-      "january",
-      "february",
-      "march",
-      "april",
-      "may",
-      "june",
-      "july",
-      "august",
-      "september",
-      "october",
-      "november",
-      "december",
-    ].find((month) => releaseDateText.toLowerCase().includes(month));
-
-    const releaseDay = releaseDateText
-      .replace(/,|\./g, "")
-      .split(" ")
-      .find((word) => !isNaN(Number(word)));
-
-    data.releaseDate = new Date(
-      `${releaseMonth} ${releaseDay}, ${currentDate.getFullYear()}`
-    );
-
-    const announcementDateTitle = page.locator(".entry-date.published");
-
-    const announcementDateText = await announcementDateTitle.innerText();
-    data.announcementDate = new Date(announcementDateText);
-
-    let game = { image: "", name: "", platform: "", description: [] };
-
-    for (const element of await page
-      .locator(".post-single__content.single__content > *")
-      .all()) {
-      const targetClass = await element.getAttribute("class");
-
-      if (targetClass.trim() === "ps-image-modal__wrapper") {
-        const img = element.locator("img");
-        const image = await img.getAttribute("data-src");
-
-        game.image = image;
-
-        continue;
-      }
-
-      const tagName = await element.evaluate((node) => node.tagName);
-
-      if (Boolean(game.image) && tagName.toLowerCase() === "h2") {
-        const fullTitle = await element.innerText();
-
-        const [name, platform] = fullTitle.split("|");
-        game.name = name.trim();
-
-        game.platform = platform.replace(/\s/g, "").replace(",", "_");
-
-        continue;
-      }
-
-      if (
-        [game.image, game.name, game.platform].every(Boolean) &&
-        tagName.toLowerCase() === "p"
-      ) {
-        const description = await element.innerText();
-        game.description = [
-          ...game.description,
-          description.trim().replace("\n", ""),
-        ];
-
-        data.games.push(Object.assign({}, game));
-        game = { image: "", name: "", platform: "", description: [] };
-      }
-    }
-
-    const file = testInfo.outputPath("ps-plus-monthly-games.json");
-    await fs.promises.writeFile(file, JSON.stringify(data), "utf8");
-  }
+  await saveJSON(data, oldData, testInfo);
 });

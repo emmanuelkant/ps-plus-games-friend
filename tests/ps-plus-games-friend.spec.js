@@ -11,7 +11,7 @@ test("Extract the data", async ({ page }, testInfo) => {
   const rawData = await axios.get(process.env.REMOTE_DATA_URL);
   const oldData = rawData.data;
 
-  const nextMonth = getNextMonth();
+  const nextMonth = getNextMonth(oldData);
 
   await page.goto("https://blog.playstation.com/category/ps-plus/");
 

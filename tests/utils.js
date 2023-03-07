@@ -14,7 +14,7 @@ const getNextMonth = (oldData) => {
 
 const getLastPSPlusPost = async (page, nextMonth) => {
   for (let i = 1; i <= 3; i++) {
-    const post = await page.locator(`article:nth-child(${i})`);
+    const post = page.locator(`article:nth-of-type(${i})`);
     const firstText = post.locator(".post-card__title");
     const postTitle = await firstText.innerText();
     const postTitleLowerCased = postTitle.toLowerCase();

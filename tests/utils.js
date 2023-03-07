@@ -52,7 +52,8 @@ const getReleaseDate = async (page) => {
   const releaseDay = releaseDateText
     .replace(/,|\./g, "")
     .split(" ")
-    .find((word) => !isNaN(Number(word)));
+    .find((word) => !isNaN(Number(word)))
+    .trim();
 
   return new Date(`${releaseMonth} ${releaseDay}, 1996`);
 };

@@ -1,23 +1,19 @@
+require("dotenv").config();
 const { test } = require("@playwright/test");
 const axios = require("axios");
-const {
-  saveJSON,
-  getPostData,
-  getNextMonth,
-  getLastPSPlusPost,
-} = require("./utils");
+const { PSPlusFriend } = require("./PSPlusFriend");
 
 test("Extract the data", async ({ page }, testInfo) => {
   const rawData = await axios.get(process.env.REMOTE_DATA_URL);
   const oldData = rawData.data;
 
-  const nextMonth = getNextMonth(oldData);
+  const psPlusFriend = new PSPlusFriend(page);
 
-  await page.goto("https://blog.playstation.com/category/ps-plus/");
+  const nextMonth = psPlusFriend.getNextMonth(oldData);
 
-  const lastPSPlusPost = await getLastPSPlusPost(page, nextMonth);
+  const lastPSPlusPost = await psPlusFriend.getLastPSPlusPost(nextMonth);
 
-  const data = await getPostData(page, lastPSPlusPost);
+  const data = await psPlusFriend.getPostData(lastPSPlusPost);
 
-  await saveJSON(data, oldData, testInfo);
+  await psPlusFriend.saveJSON(data, oldData, testInfo);
 });
